@@ -1,6 +1,6 @@
 /*
 
-	This file is part of StaticWeb (https://github.com/Pacien/StaticWeb).
+	This file is part of StaticWeb <https://github.com/Pacien/StaticWeb>.
 
 	StaticWeb is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -21,6 +21,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -32,26 +33,31 @@ var params struct {
 }
 
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
-	host := strings.Split(*&r.Host, ":")
+	host := strings.Split(r.Host, ":")
+	
 	if host[0] == "" {
-		log.Println("No host")
-		http.Error(w, "404 page not found", http.StatusNotFound)
+		log.Println("Undefined host")
+		http.NotFound(w, r)
 		return
 	}
+	
 	request := r.URL.Path[1:]
-	requestedFile := *&params.dir + "/" + *&host[0] + "/" + *&request
+	requestedFile := params.dir + "/" + host[0] + "/" + request
 	log.Println(requestedFile)
+	
 	file, err := os.Stat(requestedFile)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, "404 page not found", http.StatusNotFound)
+		http.NotFound(w, r)
 		return
 	}
+	
 	if file.IsDir() && !strings.HasSuffix(requestedFile, "/") {
 		http.Redirect(w, r, r.URL.Path+"/", http.StatusFound)
 		return
 	}
-	http.ServeFile(w, r, *&requestedFile)
+	
+	http.ServeFile(w, r, requestedFile)
 }
 
 func init() {
@@ -63,29 +69,31 @@ func init() {
 }
 
 func main() {
+	fmt.Println("StaticWeb <https://github.com/Pacien/StaticWeb>")
+
 	if params.log != "" {
-		logFile, err := os.OpenFile(*&params.log, os.O_WRONLY, 0666)
-		if os.IsNotExist(*&err) {
-			log.Println("Log file not found, creating a new log file:", *&err)
-			logFile, err = os.Create(*&params.log)
+		logFile, err := os.OpenFile(params.log, os.O_WRONLY, 0666)
+		if os.IsNotExist(err) {
+			log.Println("Log file not found, creating a new log file:", err)
+			logFile, err = os.Create(params.log)
 			if err != nil {
-				log.Println("Cannot create log file:", *&err)
+				log.Println("Cannot create log file:", err)
 				return
 			}
-		} else if *&err != nil {
-			log.Println("Cannot open log file:", *&err)
+		} else if err != nil {
+			log.Println("Cannot open log file:", err)
 			return
 		}
 		defer logFile.Close()
-		log.SetOutput(*&logFile)
+		log.SetOutput(logFile)
 	}
 
-	log.Println("Starting StaticWeb on " + *&params.addr + ":" + *&params.port)
+	log.Println("Listening on " + params.addr + ":" + params.port)
 
 	http.HandleFunc("/", defaultHandler)
-	err := http.ListenAndServe(*&params.addr+":"+*&params.port, nil)
+	err := http.ListenAndServe(params.addr+":"+params.port, nil)
 	if err != nil {
-		log.Println(*&err)
+		log.Println(err)
 		return
 	}
 }
