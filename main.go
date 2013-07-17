@@ -34,29 +34,35 @@ var params struct {
 
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	host := strings.Split(r.Host, ":")
-	
+
 	if host[0] == "" {
 		log.Println("Undefined host")
 		http.NotFound(w, r)
 		return
 	}
-	
+
 	request := r.URL.Path[1:]
 	requestedFile := params.dir + "/" + host[0] + "/" + request
 	log.Println(requestedFile)
-	
+
 	file, err := os.Stat(requestedFile)
 	if err != nil {
 		log.Println(err)
-		http.NotFound(w, r)
+		if os.IsNotExist(err) {
+			http.NotFound(w, r)
+		} else if os.IsPermission(err) {
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		} else {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
 		return
 	}
-	
+
 	if file.IsDir() && !strings.HasSuffix(requestedFile, "/") {
 		http.Redirect(w, r, r.URL.Path+"/", http.StatusFound)
 		return
 	}
-	
+
 	http.ServeFile(w, r, requestedFile)
 }
 
